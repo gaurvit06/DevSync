@@ -1,35 +1,80 @@
 # DevSync
 
-DevSync is an AI-powered developer collaboration platform for teams to manage projects, tasks, bugs, comments, notifications, chat, and calls in one workspace. It uses a React and TypeScript frontend, a modular Spring Boot backend, and MySQL with Flyway migrations.
+**An AI-assisted workspace where developer teams manage projects, tasks, bugs, chat and calls in one place.**
 
-## Open the local app
+[Hosted demo](https://devsync-woad-seven.vercel.app/) · Java 21 · Spring Boot 3.5 · React 19 · MySQL 8.4
 
-Open http://127.0.0.1:5186 after starting the application. Development-only demonstration accounts:
+<!-- Add screenshots here: task board, bug page with the AI suggestion, and a group call.
+     Suggested path: docs/images/board.png, docs/images/bug-ai.png, docs/images/call.png -->
+
+## Why DevSync
+
+Student and small teams often run on a chat group for tasks, a spreadsheet for bugs and memory for deadlines. DevSync puts the project board, bug tracker, team chat, calls and a small AI helper in one app, so everyone sees the same picture.
+
+## Features
+
+- **Projects and roles:** create projects, invite members by email, and give each member a Manager or Developer role per project.
+- **Tasks and bugs:** one work-item model with status, priority, assignee, deadline and an optional pull request link. Bugs add severity, steps and a category. Filters and a board view are included.
+- **Comments and notifications:** discuss work items and get notified on assignment, status changes and comments.
+- **Chat:** a group chat for each project and direct messages between teammates.
+- **Calls:** voice and video calls with microphone, camera and screen sharing. Up to four people per group call, peer to peer.
+- **Snippets:** a shared library of commands, queries and code examples, with search and copy.
+- **Dashboard and activity:** progress, overdue work and an activity feed for managers.
+- **AI assistance:** bug category suggestions and project summaries. Suggestions never change anything until a person accepts them.
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Backend | Java 21, Spring Boot 3.5 (Web, Data JPA, Security, Validation, Actuator), Maven |
+| Database | MySQL 8.4, Flyway migrations |
+| Frontend | React 19, TypeScript, Vite, Bootstrap 5, lucide-react |
+| Security | Server sessions, BCrypt, CSRF tokens, HttpOnly SameSite cookies |
+| Calls | WebRTC (peer to peer), signalling relayed by the Spring server |
+| AI | OpenAI-compatible chat API, with a built-in local-rules fallback |
+| Testing | JUnit 5, Testcontainers, Vitest, ESLint, Playwright |
+| Delivery | Docker Compose, Nginx; hosted on Vercel (frontend) and Railway (API and database) |
+
+## Architecture
+
+```
+Browser → React (Vite / Nginx) → /api → Spring controllers
+        → transactional services → JPA repositories → MySQL
+                        └→ AiAssistantService → local rules or external AI API
+```
+
+The backend is split into modules: `identity`, `projects`, `workitems`, `discussion`, `notifications`, `insights`, `chat`, `calls`, `developer` and `shared`. Flyway owns the schema and Hibernate only validates it. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the schema, API routes and the Java OOP examples.
+
+## Quick start
+
+Requires Docker Desktop (Linux containers), Git and PowerShell.
+
+```powershell
+git clone https://github.com/gaurvit06/DevSync.git
+cd DevSync
+Copy-Item .env.example .env
+docker compose up -d --build --wait
+```
+
+Open http://127.0.0.1:5186. The API runs on port 8086 and MySQL on loopback port 3308.
+
+To load fictional demo data (needs Node and the frontend dependencies):
+
+```powershell
+npm.cmd --prefix frontend ci
+node scripts/seed-demo.mjs
+```
+
+Demo accounts (development only, created by the seed script):
 
 | Role | Email | Password |
 | --- | --- | --- |
 | Project manager | manager@devsync.test | DevSyncDemo123! |
 | Developer | developer@devsync.test | DevSyncDemo123! |
 
-These fictional accounts are created only by explicitly running the demo seed script. Change `DEMO_PASSWORD` before initial seeding if desired. Normal registrations use passwords you choose.
+Stop with `docker compose stop`. Do not use `docker compose down -v` unless you want to delete the data.
 
-## Start with Docker
-
-Requires Docker Desktop with Linux containers, Git, and PowerShell. From this folder:
-
-```powershell
-Copy-Item .env.example .env # first setup only; edit local values if needed
-docker compose up -d --build --wait
-# Optional fictional demo data: requires Node and frontend npm dependencies
-npm.cmd --prefix frontend ci
-node scripts/seed-demo.mjs
-```
-
-The frontend is on 5186, API on 8086, MySQL on loopback 3308. Stop with `docker compose stop`; restart with `docker compose start`. Volumes preserve data. Do not use `down -v` unless deliberately deleting this project's data. Separate `devsync-acceptance` storage is used for browser tests.
-
-## Local development
-
-Requires JDK 21 (`JAVA_HOME`), Node 22.12+ or a compatible newer version, Chrome, Docker Desktop, and PowerShell 7. The current checkout has an ignored JDK and Maven installation under `.tools`; Maven Wrapper downloads Maven 3.9.9 on another machine. Tested here with Temurin 21.0.13.1, Node 26.13.0, Docker 29.9.2, MySQL 8.4.13.
+For local development without Compose (JDK 21, Node 22.12+, PowerShell 7):
 
 ```powershell
 ./scripts/Start-Local.ps1
@@ -37,79 +82,65 @@ node scripts/seed-demo.mjs
 ./scripts/Stop-Local.ps1
 ```
 
-Use `-Rebuild` after backend source changes. Vite reloads frontend changes. Do not run the full Compose app and local scripts on the same ports at once. Local logs and process records are in `.local/demo/`; readiness is `/actuator/health/readiness` on the API port. A separate runtime copy of the JAR prevents Windows file locks from breaking later builds.
+## Configuration
 
-For manual terminals: start the Compose database, run `backend/mvnw.cmd -f backend/pom.xml spring-boot:run`, and `npm.cmd --prefix frontend run dev`. The frontend proxies `/api` to 8086. Local scripts read supported `.env` settings unless already set in the environment and restore the caller's environment afterward; Compose also reads `.env`. Manual Maven terminals need configuration exported to their environment. Start Docker Desktop if its engine cannot be reached. If a port is busy, stop its owning DevSync mode rather than terminating unknown processes.
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD` | MySQL connection |
+| `MYSQL_ROOT_PASSWORD` | MySQL root password (Compose) |
+| `PORT` | API port (default 8086) |
+| `COOKIE_SECURE` | Set `true` under HTTPS |
+| `AI_API_KEY` | Enables the real AI provider. Without it, local rules are used |
+| `AI_MODEL`, `AI_API_URL` | Model name and endpoint (defaults: `gpt-4.1-mini`, OpenAI chat completions) |
+| `CALL_ICE_URLS`, `CALL_TURN_USERNAME`, `CALL_TURN_CREDENTIAL` | Optional ICE and TURN settings for calls across restrictive networks |
 
-## Verification
+Never put keys in frontend variables and never commit `.env`.
+
+## How the AI works
+
+- **Bug category:** open a bug and click **Suggest category**. You get a category (such as authentication, database, performance, UI or backend), a rationale and a next debugging check.
+- **Project summary:** open **AI tools** and click **Generate summary** for a briefing with progress and links to work that needs attention. Counts come from database queries. The AI only turns selected facts into prose.
+- **No key, or the call fails:** clearly labelled local rules take over, so the feature always works.
+- **Safeguards:** requests are scoped to project members, limited to ten per user per minute, and never change a bug until accepted.
+
+## Testing
 
 ```powershell
-./scripts/Verify.ps1
-```
-
-This stops script-managed local servers before a clean dependency install, builds container images, runs backend tests against disposable Testcontainers MySQL, frontend checks/build, browser acceptance on separate ports 5187/8087/3309, and a stop/start persistence check. Stop the full Compose API/web first if running those instead. Demo data is preserved; restart the demo afterward. Chrome runs with fresh automated contexts, not your personal browser profile. To use installed Playwright Chromium instead, set `$env:PLAYWRIGHT_CHANNEL='chromium'` and install it with `npx playwright install chromium` from `frontend`.
-
-Individual commands:
-
-```powershell
+./scripts/Verify.ps1                          # full run: backend, frontend, browser, persistence
 ./backend/mvnw.cmd -f backend/pom.xml clean verify
 npm.cmd --prefix frontend run typecheck
 npm.cmd --prefix frontend run lint
 npm.cmd --prefix frontend test
-npm.cmd --prefix frontend run build
-./scripts/Start-Local.ps1 -Acceptance
 npm.cmd --prefix frontend run test:e2e
-./scripts/Stop-Local.ps1 -Acceptance
 ```
 
-The verification workflow runs backend integration tests, frontend type checking, linting, unit tests, production builds, browser workflows, and a persistence check. Playwright reports and generated verification artifacts remain local and are excluded from version control.
+Backend integration tests run against a disposable MySQL through Testcontainers. Browser tests use Playwright on separate ports (5187, 8087, 3309).
 
-## Calls and developer tools
+## Project structure
 
-- **Projects** compares development tasks, bugs being fixed, reviews, and overdue work across your projects. Open any project board directly from that view.
-- **Activity** is available to managers of the selected project. Managers also handle invitations, role changes, and member removal under **Team**. Developers can see their team roster, boards, and work progress.
-- **Chat → Group chat** shows the selected project's conversation and its voice and video controls. Up to four project members can join. Messages stay visible during the call. Another member can click **Project call in progress** to open the group chat and join.
-- **Chat → Direct messages** lets you choose a teammate and start a private voice or video call from their thread. The teammate sees the active call in their contact list and can join in the thread. Either participant can end the two-person call. Messages and history remain available while calling. Role badges use the selected project when both people belong to it.
-- Both call types support microphone, camera, and screen sharing. You can open the board during a call and use **Return to call** or **Return to direct call** to return to the conversation. Only one call can use a browser tab at a time.
-- **Snippets** lets the team share short commands, queries, and source examples. Search by title, copy code with its original formatting, and edit your own snippets. Managers can remove snippets. Code is displayed as text.
-- **Pull request URL** is an optional field when creating or editing a work item. Team members can open the review link directly from the item's details.
+```
+backend/    Spring Boot API (Java 21)
+frontend/   React + TypeScript app
+docs/       ARCHITECTURE.md, DEMO.md
+scripts/    PowerShell and Node helpers: start, stop, verify, seed
+compose.yaml, compose.acceptance.yaml, .env.example
+```
 
-### Try a local call
+## Known limitations and roadmap
 
-1. Open the same local DevSync URL in two separate browser profiles and sign in as two members of one project.
-2. In **Chat → Group chat**, start a voice or video call in the first profile. For a private call, open the teammate's thread under **Direct messages**. Join from the other profile and grant the media permissions for the devices you want to use.
-3. Use headphones to avoid feedback when testing two sessions on the same computer. Use **Leave call** in both profiles when finished.
+- Work-item filters and dashboard counts load a project's work first and filter in code. Moving them to indexed SQL queries is the next step for larger deployments.
+- Chat and notifications use polling, not WebSockets.
+- Calls end when the API restarts. TURN may be needed on networks that block direct connections.
+- Ideas for later: deeper GitHub integration (pull request status), AI priority and task-description suggestions, AI code review suggestions, sprint planning and workload prediction, Slack integration.
 
-Browser media works on localhost and on a trusted HTTPS origin. For separate devices, both browsers need to reach the same DevSync deployment. Configure the backend's optional `CALL_ICE_URLS` and, for a TURN relay, `CALL_TURN_USERNAME` and `CALL_TURN_CREDENTIAL`. The values are shared with authorized participants during join, so use relay credentials intended for browsers. TURN may be required on networks that block direct connections. Local calls use direct browser connections by default. Calls are ephemeral and use peer-to-peer media. The DevSync server relays signaling and does not record the call.
+## Team
 
-## Hosted demo
+BE (CSE) college project. Faculty guide: Mrs. Cheenu.
 
-DevSync is deployed on Vercel with a Spring Boot API and a separate MySQL database on Railway. Create an account on the hosted site to use it. [Open the hosted demo](https://devsync-woad-seven.vercel.app/)
+- Gaurvit Joshi
+- Mehak Sharma
+- Pratham Panesar
 
-Run the Dockerized Spring Boot API as one instance with a fresh MySQL database on a private network. Set `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, `COOKIE_SECURE=true`, and `SERVER_FORWARD_HEADERS_STRATEGY=framework` on the API service. Its readiness endpoint is `/actuator/health/readiness`.
+## License
 
-From the project root, run `scripts/New-VercelPackage.ps1 -ApiOrigin <hosted-https-origin>` to build the frontend and generate an isolated Vercel upload directory. Its rewrite forwards browser requests under `/api` to the hosted API. The package includes the frontend build and routing configuration, so the remote browser can use same-origin session cookies. If the API host sleeps or restarts, users may need to sign in again and rejoin active calls.
-
-## AI and configuration
-
-Open **AI tools** in the workspace navigation. **Generate summary** creates a project briefing with progress, completed work, and direct links to work that needs attention. Choose **Browse bugs**, open a bug, and click **Suggest category** for a category, its rationale, and a next debugging check. The briefing is also available from Overview.
-
-Without credentials, category suggestions and summaries use explicitly labeled local rules/facts. This is the default, fully usable mode. Set `AI_API_KEY`, optional `AI_MODEL`, and `AI_API_URL` on the backend for the real API adapter. The default adapter uses an OpenAI-compatible chat-completions endpoint with JSON responses. Never place keys in frontend variables or commit `.env`.
-
-Remote requests time out, validate responses, and fall back visibly on failure. AI requests are membership-scoped and limited to ten per user/minute. Suggestions do not change a bug until accepted. Counts come from Java/database queries; an LLM only turns selected facts into prose. Generated summaries should be reviewed against their displayed metrics. Tests with a local HTTP stub do not establish live-provider success.
-
-Configuration: `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, `MYSQL_ROOT_PASSWORD` (Compose), `PORT`, `COOKIE_SECURE`, and the AI variables. Use secure cookies under HTTPS; local HTTP explicitly defaults to nonsecure cookies. Production deployment needs deployment-specific TLS, secrets, and cookie configuration and is outside this local delivery.
-
-## Permissions and notification rules
-
-Roles belong to project memberships. Managers edit project settings, invite/remove members, change roles, and delete work items. Both roles create/update/assign work and comment. Only authors edit comments; authors/managers delete them. Removing the last manager is forbidden. Removing a member revokes access and unassigns their open work.
-
-To invite someone, open **Team** as a manager and enter the email they used to register on this DevSync instance. The invite appears in their DevSync **Inbox**. After they accept, they can open the project. The Team page shows pending invites.
-
-Assignment notifies the new assignee. Later status changes/comments notify the active creator, assignee, and prior commenters, deduplicated and excluding the actor. Initial creation sends an assignment notification rather than a duplicate status notice. Notifications are private to their recipient; item links recheck current membership. The UI polls every 20 seconds.
-
-Work dates follow each project's timezone (default Asia/Kolkata); event timestamps are UTC. Open means not DONE; overdue excludes today and completed items. Completion is DONE/all, with 0% for an empty project. Board columns reflect the current filtered page, explicitly labeled in the UI.
-
-See `docs/ARCHITECTURE.md` for OOP/schema/API details and `docs/DEMO.md` for a walkthrough.
-
-DevSync's filters and board draw inspiration from [Project Management Dashboard by Nickelfox Design](https://www.figma.com/community/file/1073116958099793906/project-management-dashboard).
+<!-- Choose a license (for example MIT) and add a LICENSE file, then name it here. -->
