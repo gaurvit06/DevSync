@@ -1,0 +1,17 @@
+name: devsync-acceptance
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: devsync
+      MYSQL_USER: devsync
+      MYSQL_PASSWORD: acceptance-only
+      MYSQL_ROOT_PASSWORD: acceptance-root
+    ports: ["127.0.0.1:3309:3306"]
+    volumes: ["acceptance-data:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysql --protocol=TCP -h 127.0.0.1 -u $$MYSQL_USER -p$$MYSQL_PASSWORD -D $$MYSQL_DATABASE -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 5s
+      retries: 40
+volumes:
+  acceptance-data:

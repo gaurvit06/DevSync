@@ -1,0 +1,41 @@
+name: devsync
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: devsync
+      MYSQL_USER: devsync
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD:-devsync-local-only}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root-local-only}
+    ports: ["127.0.0.1:3308:3306"]
+    volumes: ["mysql-data:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysql --protocol=TCP -h 127.0.0.1 -u $$MYSQL_USER -p$$MYSQL_PASSWORD -D $$MYSQL_DATABASE -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 5s
+      retries: 40
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: jdbc:mysql://db:3306/devsync
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-devsync-local-only}
+      PORT: 8086
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
+      AI_API_URL: ${AI_API_URL:-https://api.openai.com/v1/chat/completions}
+      CALL_ICE_URLS: ${CALL_ICE_URLS:-}
+      CALL_TURN_USERNAME: ${CALL_TURN_USERNAME:-}
+      CALL_TURN_CREDENTIAL: ${CALL_TURN_CREDENTIAL:-}
+    ports: ["127.0.0.1:8086:8086"]
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8086/actuator/health/readiness || exit 1"]
+      interval: 10s
+      retries: 30
+  web:
+    build: ./frontend
+    ports: ["127.0.0.1:5186:80"]
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  mysql-data:
