@@ -11,3 +11,8 @@ artifacts/team-demo/
 artifacts/account-demo/
 artifacts/parallel-demo/
 artifacts/hosted-demo/
+
+# Internal build notes
+BUILD.md
+BUILD_STATUS.md
+VERIFICATION.md

@@ -1,6 +1,6 @@
 # DevSync
 
-A local-first Java project for development teams: projects, invitations, task boards, bug reports, comments, notifications, activity, factual dashboards, and optional AI assistance. React/TypeScript frontend, Spring Boot modular backend, MySQL/Flyway storage. Nothing has been published to GitHub.
+DevSync is an AI-powered developer collaboration platform for teams to manage projects, tasks, bugs, comments, notifications, chat, and calls in one workspace. It uses a React and TypeScript frontend, a modular Spring Boot backend, and MySQL with Flyway migrations.
 
 ## Open the local app
 
@@ -62,7 +62,7 @@ npm.cmd --prefix frontend run test:e2e
 ./scripts/Stop-Local.ps1 -Acceptance
 ```
 
-See `VERIFICATION.md` for actual results and limitations. Playwright reports are in `frontend/playwright-report/`; screenshots and command evidence are in `artifacts/verification/`. Building images skips tests; it is not a replacement for verification.
+The verification workflow runs backend integration tests, frontend type checking, linting, unit tests, production builds, browser workflows, and a persistence check. Playwright reports and generated verification artifacts remain local and are excluded from version control.
 
 ## Calls and developer tools
 
